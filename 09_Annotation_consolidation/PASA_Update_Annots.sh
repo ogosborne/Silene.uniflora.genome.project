@@ -27,6 +27,7 @@ $PASAHOME/Launch_PASA_pipeline.pl \
         -A \
         -g Su_softmasked.fasta \
         -t Trinity.fasta.clean |& tee pasa.annotCompare2.log
+mv 4.mydb_pasa.sqlite.gene_structures_post_PASA_updates.25334 PASA.final.gff3
 
 # load new PASA annotations (2)
 $PASAHOME/scripts/Load_Current_Gene_Annotations.dbi \
