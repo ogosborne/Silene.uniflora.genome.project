@@ -7,3 +7,5 @@ hisat2-build ${genome} genome
 hisat2 -x genome -1 ${r1} -2 ${r2} -S mapping.sam -p 40 --dta  2>&1 | tee hisat2.stat 
 # sort
 samtools sort -T . -m 8G -@ 20  mapping.sam > sorted.bam
+# assemble transcripts
+stringtie -o stringtie.gtf -p 40 sorted.bam
