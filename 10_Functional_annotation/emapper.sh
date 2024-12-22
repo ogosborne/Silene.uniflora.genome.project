@@ -1,3 +1,6 @@
+
+gffread -g Su_softmasked.fasta -S -y PASA.final.gff3.pep.fasta PASA.final.gff3
+
 emapper.py \
 --tax_scope 33090 \
 --output_dir results \
