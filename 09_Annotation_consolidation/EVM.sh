@@ -89,6 +89,9 @@ echo -e "ABINITIO_PREDICTION\tGlimmerHMM\t1" >> weights.txt
 #### recombine partitions
 ~/software/EVidenceModeler-1.1.1/EvmUtils/recombine_EVM_partial_outputs.pl --partitions partitions.txt --output_file_name evm.out
 
+#### extract evidence from evm.out
+awk -v chrom=${i} 'BEGIN{score="score"; genename="gene.name"; nexons = "n.exons"; nAugustus = "n.Augustus"; nGeneMarkhmm = "n.GeneMark.hmm"; nSNAP = "n.SNAP"; nGlimmerHMM = "n.GlimmerHMM"; npasa = "n.pasa"; nstringtie = "n.stringtie"; nexonerate = "n.exonerate"; ngene=0}; /^#/{print chrom, genename, score, nexons, nAugustus, nGeneMarkhmm, nGlimmerHMM, nSNAP, npasa, nstringtie, nexonerate; ++ngene; nexons = 0; nAugustus = 0; nGeneMarkhmm = 0; nSNAP = 0; nGlimmerHMM = 0; npasa = 0; nstringtie = 0; nexonerate = 0; genename= "evm.TU."chrom"."ngene; split($9,k,"[()]") ; score=k[2];}; !/^#/{if($3 != "INTRON" && $3 != "") {++nexons; if($6 ~ /Augustus/) {++nAugustus}; if($6 ~ /GeneMark\.hmm/) {++nGeneMarkhmm}; if($6 ~ /GlimmerHMM/) {++nGlimmerHMM}; if($6 ~ /SNAP/) {++nSNAP}; if($6 ~ /pasa/) {++npasa}; if($6 ~ /stringtie/) {++nstringtie}; if($6 ~ /exonerate/) {++nexonerate}}}; END{print chrom, genename, score, nexons, nAugustus, nGeneMarkhmm, nGlimmerHMM, nSNAP, npasa, nstringtie, nexonerate ;}' OFS="," evm.out > evidence.csv
+
 #### convert to gff3
 # convert
 ~/software/EVidenceModeler-1.1.1/EvmUtils/convert_EVM_outputs_to_GFF3.pl  --partitions partitions.txt --output evm.out --genome Su_softmasked.fasta
