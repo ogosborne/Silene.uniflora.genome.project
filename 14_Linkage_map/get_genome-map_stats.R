@@ -1,8 +1,7 @@
 library(tidyverse)
 ##### Read data
 # read map
-mapdir <- "Linkage_map/"
-map <- read.table(paste0(mapdir, "map.tsv"), header = T)
+map <- read.table("Linkage_map/map.tsv", header = T)
 # read fasta index for sequence lengths
 chr.info <- read.table("data/Su_softmasked.fasta.fai")[,1:2]
 colnames(chr.info) <- c("scaff.name", "length")
