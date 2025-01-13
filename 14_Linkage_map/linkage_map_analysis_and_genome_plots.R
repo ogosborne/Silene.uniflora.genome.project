@@ -235,6 +235,75 @@ colnames(NGenes) <- c("scaffold", "start", "end", "N.genes")
 GC <- read.table("../../../results/14_genome_structure_stats/gc/GC_1Mb.tsv")
 colnames(GC) <- c("scaffold", "start", "end", "pct_at", "pct_gc",	"num_A", "num_C", "num_G", "num_T", "num_N", "num_oth", "seq_len")
 GC <- GC[,c("scaffold", "start", "end", "pct_gc")]
+# Repeat content
+reps <- read.table("data/RepeatMasker/repeats.gff", sep = "\t")[,c(1,4,5,9)] # repeats.gff created in RepeatMasker.sh
+colnames(reps) <- c("scaff", "start", "end", "info")
+reps$scaff <- paste0("s_", reps$scaff)
+reps <- reps[which(reps$scaff %in% chr.info$scaff.name),]
+# split seq names to get 
+inf <- str_split_fixed(reps$info, pattern = "\\|", n = 7)
+# get repeat family
+repfam <- ifelse(inf[,3] == "", "simple", inf[,3])
+# simplify repeat family classifications
+rf_c <- c(rep("DNA transposon", 10),
+          "non-LTR retrotransposon",
+          "Other LTR retrotransposon",
+          "Copia",
+          "Gypsy",
+          "Other/Unknown",
+          "non-LTR retrotransposon",
+          "Other/Unknown",
+          "Simple repeat",
+          "DNA transposon",
+          "Other/Unknown",
+          "rRNA",
+          "Satellite",
+          "Simple repeat",
+          "DNA transposon")
+names(rf_c) <- c("DNA","DNA/En-Spm","DNA/Harbinger","DNA/hAT","DNA/hAT-Ac","DNA/Mite","DNA/MuDR","DNA/Stowaway","DNA/TcMar","DNA/Tourist","LINE","LTR","LTR/Copia","LTR/Gypsy","MobileElement","nonLTR","Other","Other/Simple","RC/Helitron","Retroelement","rRNA","Satellite","simple","SINE")
+# add to reps
+reps$rep_family <- repfam
+reps$rep_family2 <- rf_c[repfam]
+reps$Chr <- scaff2chrom[reps$scaff]
+# get repeat coverage per-family in windows
+reps.gr <- makeGRangesFromDataFrame(
+  data.frame(chr = reps$Chr,
+             start = reps$start,
+             end = reps$end, 
+             repeat_family = reps$rep_family2),
+  keep.extra.columns = T
+)
+seqlevels(reps.gr) <- chr.info$chr.name
+seqlengths(reps.gr) <- chr.info$length
+reps.gr <- trim(reps.gr)
+# make 1MB windows
+bins <- GenomicRanges::tileGenome(seqlengths(reps.gr),
+                                  tilewidth=1000000,
+                                  cut.last.tile.in.chrom=TRUE)
+# function to get repeat coverage
+get_rep_coverage <- function(reps.gr, bins){
+  fams <- sort(unique(reps.gr$repeat_family))
+  rep_cov <- list()
+  for(i in fams){
+    # subset rep family
+    my.reps <- reps.gr[which(reps.gr$repeat_family == i),]
+    # get coverage
+    my.cov <- coverage(my.reps)
+    # set all regions covered by at least one rep to 1
+    for(n in names(my.cov)){
+      my.cov[[n]]@values <- ifelse(my.cov[[n]]@values > 0, 1, 0)
+    }
+    # get mean coverage across windows (i.e prop covered by a rep)
+    my.rep_cov <- binnedAverage(bins = bins, numvar = my.cov, paste0(i, " coverage"))
+    my.rep_cov <- as.data.frame(my.rep_cov)
+    rep_cov[[i]] <- my.rep_cov
+  }
+  rep_cov <- Reduce(merge, rep_cov)
+  colnames(rep_cov)[1] <- "Chr"
+  rep_cov$start <- rep_cov$start-1 # so it matches bedtools windows
+  rep_cov
+}
+rep_coverage <- get_rep_coverage(reps.gr = reps.gr, bins = bins)
 # Marey map
 mareymap <- Reduce(rbind, blocks_noOL)[,c("LG","scaffold", "Chr", "pos", "map.pos")]
 # Recombination rate
@@ -246,17 +315,18 @@ rr$mid <- rr$mid*1E6
 # Combine windowed data
 windows <- merge(NGenes, GC)
 windows <- merge(windows, rr)
+windows <- merge(windows, rep_coverage)
 # plot correlations between stats
-my.dat <- windows[,c("Chr", "N.genes", "pct_gc", "rr.lo")]
-colnames(my.dat) <- c("chromosome","Genes/Mb", "GC %", "cM/Mb")
+my.dat <- windows[,c("Chr", "N.genes", "pct_gc", "rr.lo", "Gypsy.coverage", "Copia.coverage")]
+colnames(my.dat) <- c("chromosome","Genes/Mb", "GC %", "cM/Mb", "Gypsy density", "Copia density")
 line_func <- function(data, mapping, ...) {
   ggplot(data, mapping) + 
     geom_point(size = 0.7) +
     geom_smooth(formula = y~x, method = lm, color = "black", se = TRUE,
                 linetype = 1)
 }
-p <- ggpairs(my.dat, columns = 2:4, upper = list(continuous = wrap(ggally_cor, method = "spearman")), lower=list(continuous=line_func), aes(colour=chromosome, alpha = 0.05), ) + 
-  theme_bw() + 
+p <- ggpairs(my.dat, columns = 2:6, upper = list(continuous = wrap(ggally_cor, method = "spearman",size = 3.5)), lower=list(continuous=line_func), aes(colour=chromosome, alpha = 0.05), size = 0.8) + 
+  theme_bw(base_size = 16) + 
   scale_color_manual(values = unname(chrom.cols)) 
 p
 ggsave("results/genome_struc_cor_all.pdf", width = 10, height = 10) 
@@ -286,7 +356,9 @@ windows.gr <- makeGRangesFromDataFrame(
              end = windows$end, 
              rr = (windows$rr.lo - min(windows$rr.lo, na.rm = T)) / sd(windows$rr.lo, na.rm = T),
              n.genes = (windows$N.genes - min(windows$N.genes)) / sd(windows$N.genes),
-             GC = (windows$pct_gc - min(windows$pct_gc)) / sd(windows$pct_gc)),
+             GC = (windows$pct_gc - min(windows$pct_gc)) / sd(windows$pct_gc),
+             Gypsy = (windows$Gypsy.coverage - min(windows$Gypsy.coverage)) / sd(windows$Gypsy.coverage),
+             Copia = (windows$Copia.coverage - min(windows$Copia.coverage)) / sd(windows$Copia.coverage)),
   keep.extra.columns = T
 )
 seqlevels(windows.gr) <- names(my.lengths)
@@ -295,6 +367,8 @@ windows.gr <- trim(windows.gr)
 # plot
 ggbio() +
   circle(windows.gr, geom = 'bar', aes(y = GC), grid = F, fill = "darkgoldenrod",colour = "darkgoldenrod", size = 0.1) +
+  circle(windows.gr, geom = 'bar', aes(y = Gypsy), grid = F, fill = "forestgreen",colour = "forestgreen", size = 0.1, ylim = c(0,1)) +
+  circle(windows.gr, geom = 'bar', aes(y = Copia), grid = F, fill = "lightgreen",colour = "lightgreen", size = 0.1) +
   circle(windows.gr, geom = 'bar', aes(y = n.genes), size = 0.1, grid = F, fill = "steelblue",colour = "steelblue") +
   circle(subset(windows.gr, !is.na(rr)), geom = 'bar', aes(y = rr), size = 0.1, grid = F, fill = "lightcoral", colour = "lightcoral") +
   circle(mareymap.gr, geom = 'point', aes(y = map.pos), size = 0.1, grid = TRUE, grid.n = 4, grid.line = 'gray70', grid.background = "white", color = "black") + 
