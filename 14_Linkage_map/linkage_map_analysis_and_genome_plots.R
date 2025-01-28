@@ -50,6 +50,32 @@ LGOkay_prp <- LGOkay_cnt %>%
   as.matrix() %>%
   proportions(margin = 1)
 scaffLGcounts$prop_main_LG <- LGOkay_prp[scaffLGcounts$Chr,"TRUE"]
+# For each chromosome, calculate the proportion of its corresponding LG that it spans 
+# get max and min map positions
+LGcov <- map[which(grepl("Chr", map$Chr) & map$LGokay == TRUE),] %>% 
+  group_by(Chr) %>% 
+  summarize(minMapPos = min(map.pos), maxMapPos = max(map.pos), LG = unique(LG)) %>% 
+  as.data.frame()
+# size of each LG in cM
+LGsize <- map %>%
+  group_by(LG) %>%
+  summarize( maxLGPos = max(map.pos)) %>% 
+  as.data.frame()
+LGcov$LGlen <- NA
+for(n in 1:nrow(LGcov)){
+  LG <- LGcov[n,"LG"]
+  LGlen <- LGsize[which(LGsize$LG == LG), "maxLGPos"]
+  LGcov[n,"LGlen"] <- LGlen
+}
+# Span of scaff in cM
+LGcov$lenLGspan <- abs(LGcov$minMapPos-LGcov$maxMapPos)
+# Proportion of LG the scaffold covers
+LGcov$prpLGspan <- LGcov$lenLGspan/LGcov$LGlen
+# Add to scaffLGcounts
+scaffLGcounts$lenLGspan <- NA
+scaffLGcounts[1:12, "lenLGspan"] <- LGcov$lenLGspan
+scaffLGcounts$prpLGspan <- NA
+scaffLGcounts[1:12, "prpLGspan"] <- LGcov$prpLGspan
 write.csv(scaffLGcounts, file = "results/scaffLGcounts.csv", row.names = F)
 # identify blocks of consecutive markers from the same scaffold for filtering windows in recombination rate estimation.
 blocks <- map %>% 
