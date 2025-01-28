@@ -222,7 +222,7 @@ plot_scaff_pos(map = map, scaffs = c("Chr11", "s_38"), LG = "LG.1", scaff.info =
 plot_scaff_pos(map = map, scaffs = c("Chr02", "s_7457"), LG = "LG.3", scaff.info = scaff.info)
 plot_scaff_pos(map = map, scaffs = c("Chr12", "s_12569", "s_1303", "s_10375"), LG = "LG.4", scaff.info = scaff.info)
 
-#### GENOMIC FEATURE RELATIONSHIPS
+#### 5. GENOMIC FEATURE RELATIONSHIPS
 # load data for plot
 scaff2chrom <- chr.info$chr.name
 names(scaff2chrom) <- chr.info$scaff.name
@@ -331,7 +331,7 @@ p <- ggpairs(my.dat, columns = 2:6, upper = list(continuous = wrap(ggally_cor, m
 p
 ggsave("results/genome_struc_cor_all.pdf", width = 10, height = 10) 
 
-#### CIRCOS PLOT
+#### 6. CIRCOS PLOT
 # lengths
 my.lengths <- chr.info$length
 names(my.lengths) <- chr.info$chr.name
@@ -377,3 +377,111 @@ ggbio() +
   circle(genome, geom = 'text', aes(label=seqnames), vjust=-1, size=3) +
   guides(fill="none")
 ggsave("results/circos.pdf", width = 10, height = 10) 
+
+#### 7. Repeat Manhattan plot
+source("https://raw.githubusercontent.com/ogosborne/Scyliorhinus_canicula_popgen/refs/heads/main/code/manhattan2.R")
+df <- windows
+df$chrnum <- as.numeric(substr(df$Chr,4,5))
+layout(matrix(c(rep(8,7),rep(c(1,2,3,4,5,6,7),4)), ncol = 5))
+par(mar = c(1,6,0,1))
+manhattan2(df,
+           chr = "chrnum", 
+           p = "Gypsy.coverage", 
+           bp = "mid", 
+           snp = "chrnum", 
+           logp=FALSE, 
+           ylab=expression(italic("Gypsy")), 
+           cex.lab = 1.3, 
+           chrlabs = rep("",12), 
+           ylim = c(min(df$Gypsy.coverage), max(df$Gypsy.coverage)), 
+           col = c("black", "cornflowerblue"), 
+           las = 2,
+           xlab = "",
+           mgp=c(3.5,1,0), 
+           xaxt = "n",
+           type = "l",
+           lwd = 2)
+manhattan2(df,
+           chr = "chrnum", 
+           p = "Copia.coverage", 
+           bp = "mid", 
+           snp = "chrnum", 
+           logp=FALSE, 
+           ylab=expression(italic("Copia")), 
+           cex.lab = 1.3, 
+           chrlabs = rep("",12), 
+           ylim = c(min(df$Copia.coverage), max(df$Copia.coverage)), 
+           col = c("black", "cornflowerblue"), 
+           las = 2,
+           xlab = "",
+           mgp=c(3.5,1,0), 
+           xaxt = "n",
+           type = "l",
+           lwd = 2)
+manhattan2(df,
+           chr = "chrnum", 
+           p = "Other.LTR.retrotransposon.coverage", 
+           bp = "mid", 
+           snp = "chrnum", 
+           logp=FALSE, 
+           ylab=expression(italic("Other LTR")), 
+           cex.lab = 1.3, 
+           chrlabs = rep("",12), 
+           ylim = c(min(df$Other.LTR.retrotransposon.coverage), max(df$Other.LTR.retrotransposon.coverage)), 
+           col = c("black", "cornflowerblue"), 
+           las = 2,
+           xlab = "",
+           mgp=c(3.5,1,0), 
+           xaxt = "n",
+           type = "l",
+           lwd = 2)
+mtext("Proportion of nucleotides", side = 2, line = 7, cex = 2, at = 0)
+manhattan2(df,
+           chr = "chrnum", 
+           p = "non.LTR.retrotransposon.coverage", 
+           bp = "mid", 
+           snp = "chrnum", 
+           logp=FALSE, 
+           ylab=expression(italic("Non-LTR\nRetrotransposon")), 
+           cex.lab = 1.3, 
+           chrlabs = rep("",12), 
+           ylim = c(min(df$non.LTR.retrotransposon.coverage), max(df$non.LTR.retrotransposon.coverage)), 
+           col = c("black", "cornflowerblue"), 
+           las = 2,
+           xlab = "",
+           mgp=c(3.5,1,0), 
+           xaxt = "n",
+           type = "l",
+           lwd = 2)
+manhattan2(df,
+           chr = "chrnum", 
+           p = "DNA.transposon.coverage", 
+           bp = "mid", 
+           snp = "chrnum", 
+           logp=FALSE, 
+           ylab=expression(italic("DNA\nTransposon")), 
+           cex.lab = 1.3, 
+           chrlabs = rep("",12), 
+           ylim = c(min(df$DNA.transposon.coverage), max(df$DNA.transposon.coverage)), 
+           col = c("black", "cornflowerblue"), 
+           las = 2,
+           xlab = "",
+           mgp=c(3.5,1,0), 
+           xaxt = "n",
+           type = "l",
+           lwd = 2)
+manhattan2(df,
+           chr = "chrnum", 
+           p = "Simple.repeat.coverage", 
+           bp = "mid", 
+           snp = "chrnum", 
+           logp=FALSE, 
+           ylab=expression(italic("Simple Repeat")), 
+           cex.lab = 1.3, 
+           chrlabs = chr.info$chr.name, 
+           ylim = c( min(df$Simple.repeat.coverage), max(df$Simple.repeat.coverage)),
+           col = c("black", "cornflowerblue"), 
+           las = 1,
+           mgp=c(3.5,1,0), 
+           type = "l",
+           lwd = 2)
